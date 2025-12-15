@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>德州扑克分数计算器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+        label {
+            width: 120px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="number"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .players-container {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .player-item {
+            display: flex;
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            align-items: center;
+        }
+        .player-item label {
+            width: 50px;
+            margin-right: 10px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #e9f7ef;
+            border-radius: 5px;
+            border-left: 5px solid #28a745;
+        }
+        .result-item {
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .win {
+            color: #28a745;
+        }
+        .lose {
+            color: #dc3545;
+        }
+        .tie {
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🃏 德州扑克最终结算</h1>
+
+        <div class="input-group">
+            <label for="initialScore">初始基础分:</label>
+            <input type="number" id="initialScore" placeholder="例如: 100" value="100">
+        </div>
+
+        <div class="input-group">
+            <label for="numPlayers">玩家人数:</label>
+            <input type="number" id="numPlayers" min="2" max="10" value="3">
+            <button onclick="generatePlayers()">生成名单</button>
+        </div>
+
+        <div id="playersContainer" class="players-container">
+            <!-- 玩家输入框将通过JS动态生成 -->
+        </div>
+
+        <button onclick="calculateScores()" style="width:100%; margin-top: 20px;">📊 计算最终输赢</button>
+
+        <div id="resultContainer" class="result" style="display:none;">
+            <h3>✅ 结算结果:</h3>
+            <div id="resultList"></div>
+        </div>
+    </div>
+
+    <script>
+        // 动态生成玩家输入框
+        function generatePlayers() {
+            const container = document.getElementById('playersContainer');
+            const num = parseInt(document.getElementById('numPlayers').value);
+            
+            if (num < 2) {
+                alert("玩家人数至少需要2人！");
+                return;
+            }
+
+            container.innerHTML = '';
+            for (let i = 1; i <= num; i++) {
+                const div = document.createElement('div');
+                div.className = 'player-item';
+                div.innerHTML = `
+                    <label>玩家${i}:</label>
+                    <input type="number" id="finalScore${i}" placeholder="输入结束后的分数" style="flex:1; margin-right:10px;">
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        // 计算分数
+        function calculateScores() {
+            const initialScore = parseFloat(document.getElementById('initialScore').value);
+            const numPlayers = parseInt(document.getElementById('numPlayers').value);
+            const resultContainer = document.getElementById('resultContainer');
+            const resultList = document.getElementById('resultList');
+            
+            if (isNaN(initialScore)) {
+                alert("请先输入有效的初始基础分！");
+                return;
+            }
+
+            resultList.innerHTML = '';
+            let totalDiff = 0; // 用于验证计算是否平衡（理论上应该接近0）
+
+            for (let i = 1; i <= numPlayers; i++) {
+                const finalInput = document.getElementById(`finalScore${i}`);
+                const finalScore = parseFloat(finalInput.value);
+
+                if (isNaN(finalScore)) {
+                    alert(`请填写玩家${i}的结束分数！`);
+                    return;
+                }
+
+                // 计算盈亏：结束分 - 初始分
+                const diff = finalScore - initialScore;
+                totalDiff += diff;
+
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item';
+
+                let resultText = '';
+                if (diff > 0) {
+                    resultText = `玩家${i}: <span class="win">赢了 ${diff} 分</span>`;
+                } else if (diff < 0) {
+                    resultText = `玩家${i}: <span class="lose">输了 ${Math.abs(diff)} 分</span>`;
+                } else {
+                    resultText = `玩家${i}: <span class="tie">不输不赢 (0分)</span>`;
+                }
+
+                resultItem.innerHTML = resultText;
+                resultList.appendChild(resultItem);
+            }
+
+            // 验证总分是否平衡（由于浮点数精度，允许极小误差）
+            if (Math.abs(totalDiff) > 0.01) {
+                const warning = document.createElement('div');
+                warning.style.color = 'orange';
+                warning.style.marginTop = '15px';
+                warning.innerHTML = `⚠️ 注意：总分差额为 ${totalDiff.toFixed(2)}，理论上应为0，请检查输入数据。`;
+                resultList.appendChild(warning);
+            }
+
+            resultContainer.style.display = 'block';
+        }
+
+        // 页面加载完成后初始化
+        window.onload = function() {
+            generatePlayers();
+        };
+    </script>
+</body>
+</html>
