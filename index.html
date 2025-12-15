@@ -18,7 +18,7 @@
             border-radius: 10px;
             box-shadow: 0 0 20px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 600px;
+            max-width: 700px;
         }
         h1 {
             text-align: center;
@@ -29,18 +29,25 @@
             margin-bottom: 20px;
             display: flex;
             align-items: center;
+            gap: 10px;
         }
         label {
             width: 120px;
             font-weight: bold;
             color: #555;
         }
-        input[type="number"] {
-            flex: 1;
+        input[type="number"], input[type="text"] {
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 16px;
+        }
+        input[type="number"] {
+            flex: 1;
+        }
+        input[type="text"] {
+            width: 120px;
+            min-width: 100px;
         }
         button {
             background-color: #007bff;
@@ -67,20 +74,24 @@
             background-color: #f9f9f9;
             border-radius: 5px;
             align-items: center;
+            gap: 10px;
         }
-        .player-item label {
-            width: 50px;
-            margin-right: 10px;
+        .player-item .name-input {
+            width: 120px;
+            font-weight: bold;
+            text-align: center;
         }
+        
+        /* 结果样式 */
         .result {
             margin-top: 20px;
             padding: 20px;
-            background-color: #e9f7ef;
             border-radius: 5px;
             border-left: 5px solid #28a745;
         }
         .result-item {
             margin: 10px 0;
+            font-size: 18px;
             font-weight: bold;
         }
         .win {
@@ -92,11 +103,27 @@
         .tie {
             color: #6c757d;
         }
+        .summary-balance {
+            margin-top: 15px;
+            padding: 10px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left-color: #f5c6cb;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border-left-color: #c3e6cb;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🃏 德州扑克最终结算</h1>
+        <h1>🃏 德州扑克最终结算 (含数学核对)</h1>
 
         <div class="input-group">
             <label for="initialScore">初始基础分:</label>
@@ -115,14 +142,14 @@
 
         <button onclick="calculateScores()" style="width:100%; margin-top: 20px;">📊 计算最终输赢</button>
 
-        <div id="resultContainer" class="result" style="display:none;">
-            <h3>✅ 结算结果:</h3>
+        <div id="resultContainer" style="display:none; margin-top: 20px;">
+            <h3>✅ 详细结果:</h3>
             <div id="resultList"></div>
+            <div id="balanceCheck" class="summary-balance"></div>
         </div>
     </div>
 
     <script>
-        // 动态生成玩家输入框
         function generatePlayers() {
             const container = document.getElementById('playersContainer');
             const num = parseInt(document.getElementById('numPlayers').value);
@@ -137,70 +164,97 @@
                 const div = document.createElement('div');
                 div.className = 'player-item';
                 div.innerHTML = `
-                    <label>玩家${i}:</label>
-                    <input type="number" id="finalScore${i}" placeholder="输入结束后的分数" style="flex:1; margin-right:10px;">
+                    <div style="flex: 1; text-align: center; font-weight: bold; color: #007bff;">第 ${i} 位</div>
+                    <div>
+                        <div>👤 姓名</div>
+                        <input type="text" id="playerName${i}" class="name-input" placeholder="玩家${i}" value="玩家${i}">
+                    </div>
+                    <div style="flex: 1;">
+                        <div>💰 结束分数</div>
+                        <input type="number" id="finalScore${i}" placeholder="输入结束后的分数">
+                    </div>
                 `;
                 container.appendChild(div);
             }
         }
 
-        // 计算分数
         function calculateScores() {
             const initialScore = parseFloat(document.getElementById('initialScore').value);
             const numPlayers = parseInt(document.getElementById('numPlayers').value);
             const resultContainer = document.getElementById('resultContainer');
             const resultList = document.getElementById('resultList');
+            const balanceCheck = document.getElementById('balanceCheck');
             
             if (isNaN(initialScore)) {
                 alert("请先输入有效的初始基础分！");
                 return;
             }
 
+            // 清空之前的显示
             resultList.innerHTML = '';
-            let totalDiff = 0; // 用于验证计算是否平衡（理论上应该接近0）
+            
+            // 用于计算总盈亏（用于校验）
+            let totalDelta = 0; 
+            let errorFlag = false;
 
+            // 第一步：先收集所有数据并计算每个人的盈亏
+            const results = [];
             for (let i = 1; i <= numPlayers; i++) {
+                const nameInput = document.getElementById(`playerName${i}`);
                 const finalInput = document.getElementById(`finalScore${i}`);
+                
+                const playerName = nameInput.value.trim() || `玩家${i}`;
                 const finalScore = parseFloat(finalInput.value);
 
                 if (isNaN(finalScore)) {
-                    alert(`请填写玩家${i}的结束分数！`);
-                    return;
+                    alert(`${playerName} 的分数未填写或格式错误！`);
+                    errorFlag = true;
+                    break;
                 }
 
-                // 计算盈亏：结束分 - 初始分
-                const diff = finalScore - initialScore;
-                totalDiff += diff;
+                // 核心计算：盈亏 = 结束分 - 初始分
+                const delta = finalScore - initialScore;
+                totalDelta += delta; // 累加到总盈亏中
 
-                const resultItem = document.createElement('div');
-                resultItem.className = 'result-item';
-
-                let resultText = '';
-                if (diff > 0) {
-                    resultText = `玩家${i}: <span class="win">赢了 ${diff} 分</span>`;
-                } else if (diff < 0) {
-                    resultText = `玩家${i}: <span class="lose">输了 ${Math.abs(diff)} 分</span>`;
-                } else {
-                    resultText = `玩家${i}: <span class="tie">不输不赢 (0分)</span>`;
-                }
-
-                resultItem.innerHTML = resultText;
-                resultList.appendChild(resultItem);
+                results.push({
+                    name: playerName,
+                    delta: delta
+                });
             }
 
-            // 验证总分是否平衡（由于浮点数精度，允许极小误差）
-            if (Math.abs(totalDiff) > 0.01) {
-                const warning = document.createElement('div');
-                warning.style.color = 'orange';
-                warning.style.marginTop = '15px';
-                warning.innerHTML = `⚠️ 注意：总分差额为 ${totalDiff.toFixed(2)}，理论上应为0，请检查输入数据。`;
-                resultList.appendChild(warning);
+            // 如果输入有误，中断执行
+            if (errorFlag) return;
+
+            // 第二步：显示每个人的计算结果
+            results.forEach(player => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                
+                if (player.delta > 0) {
+                    div.innerHTML = `🏆 <strong>${player.name}</strong>: 赢了 <span class="win">+${player.delta}</span> 分`;
+                } else if (player.delta < 0) {
+                    div.innerHTML = `🔻 <strong>${player.name}</strong>: 输了 <span class="lose">${player.delta}</span> 分`;
+                } else {
+                    div.innerHTML = `⚖️ <strong>${player.name}</strong>: <span class="tie">不输不赢 (0分)</span>`;
+                }
+                resultList.appendChild(div);
+            });
+
+            // 第三步：进行数学核对 (关键修复点)
+            // 在封闭系统中，所有人的 (结束分 - 初始分) 总和应该等于 0
+            const tolerance = 0.01; // 浮点数计算容差
+            
+            if (Math.abs(totalDelta) < tolerance) {
+                balanceCheck.innerHTML = `✅ 数学核对通过！账目平衡。 (总盈亏: ${totalDelta.toFixed(2)})`;
+                balanceCheck.className = 'summary-balance success';
+            } else {
+                balanceCheck.innerHTML = `❌ 核对失败！账目不平衡，总盈亏为: ${totalDelta.toFixed(2)}。请检查是否有玩家中途买入筹码或分数输入错误。`;
+                balanceCheck.className = 'summary-balance error';
             }
 
             resultContainer.style.display = 'block';
         }
 
-        // 页面加载完成后初始化
         window.onload = function() {
             generatePlayers();
         };
